@@ -5,6 +5,7 @@ from pgmpy.models import MarkovNetwork, MarkovChain
 from pgmpy.factors.discrete import DiscreteFactor
 import numpy as np
 import itertools
+from pgmpy.sampling.Sampling import State
 
 import pandas as pd
 import torch
