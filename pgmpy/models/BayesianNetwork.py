@@ -95,6 +95,7 @@ class BayesianNetwork(DAG):
     def __init__(self, ebunch=None, latents=set()):
         super(BayesianNetwork, self).__init__(ebunch=ebunch, latents=latents)
         self.cpds = []
+        # a defaultdict is created with default value as zero
         self.cardinalities = defaultdict(int)
 
     def add_edge(self, u, v, **kwargs):
