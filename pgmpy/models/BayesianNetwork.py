@@ -95,6 +95,7 @@ class BayesianNetwork(DAG):
     def __init__(self, ebunch=None, latents=set()):
         super(BayesianNetwork, self).__init__(ebunch=ebunch, latents=latents)
         self.cpds = []
+        self.evidence_dict = {}
         # a defaultdict is created with default value as zero
         self.cardinalities = defaultdict(int)
 
@@ -267,7 +268,7 @@ class BayesianNetwork(DAG):
             else:
                 self.cpds.append(cpd)
 
-    def get_cpds(self, node=None):
+    def get_cpds(self, node=None, evidence=None):
         """
         Returns the cpd of the node. If node is not specified returns all the CPDs
         that have been added till now to the graph
@@ -301,6 +302,7 @@ class BayesianNetwork(DAG):
                     if cpd.variable == node:
                         return cpd
         else:
+            self.evidence_dict[node] = evidence
             return self.cpds
 
     def remove_cpds(self, *cpds):

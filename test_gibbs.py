@@ -30,18 +30,6 @@ class GibbsSampling(MarkovChain):
     Examples
     --------
     Initialization from a BayesianNetwork object:
-
-    >>> from pgmpy.factors.discrete import TabularCPD
-    >>> from pgmpy.models import BayesianNetwork
-    >>> intel_cpd = TabularCPD('intel', 2, [[0.7], [0.3]])
-    >>> sat_cpd = TabularCPD('sat', 2, [[0.95, 0.2], [0.05, 0.8]], evidence=['intel'], evidence_card=[2])
-    >>> student = BayesianNetwork()
-    >>> student.add_nodes_from(['intel', 'sat'])
-    >>> student.add_edge('intel', 'sat')
-    >>> student.add_cpds(intel_cpd, sat_cpd)
-    >>> from pgmpy.sampling import GibbsSampling
-    >>> gibbs_chain = GibbsSampling(student)
-    >>> gibbs_chain.sample(size=3)
        intel  sat
     0      0    0
     1      0    0
@@ -71,18 +59,28 @@ class GibbsSampling(MarkovChain):
         self.cardinalities = {
             var: model.get_cpds(var).variable_card for var in self.variables
         }
+        dimension = len(self.variables)
 
         for var in self.variables:
             other_vars = [v for v in self.variables if var != v]
             other_cards = [self.cardinalities[v] for v in other_vars]
             kernel = {}
-            factors = [cpd.to_factor() for cpd in model.cpds if var in cpd.scope()]
-            factor = factor_product(*factors)
-            scope = set(factor.scope())
+            # factors = [cpd.to_factor() for cpd in model.cpds if var in cpd.scope()]
+            # factor = factor_product(*factors)
+            # scope = set(factor.scope())
+            scope = {v for v in self.variables if v is not None}
             for tup in itertools.product(*[range(card) for card in other_cards]):
                 states = [State(v, s) for v, s in zip(other_vars, tup) if v in scope]
-                reduced_factor = factor.reduce(states, inplace=False)
-                kernel[tup] = reduced_factor.values / sum(reduced_factor.values)
+                array = np.zeros(self.cardinalities[var])
+                for i in range(self.cardinalities[var]):
+                    cpd = model.get_cpds(node=var).values
+                    num = []
+                    for i, state in enumerate(states):
+                        if model.evidence_dict[var][i] == state.state:
+                            num.append(state.var)
+                    array[i] = cpd[i][num[0]][num[1]]
+                # reduced_factor = factor.reduce(states, inplace=False)
+                kernel[tup] = array
             self.transition_models[var] = kernel
 
     def _get_kernel_from_markov_model(self, model):
@@ -152,16 +150,6 @@ class GibbsSampling(MarkovChain):
             The generated samples
 
         Examples
-        --------
-        >>> from pgmpy.factors.discrete import DiscreteFactor
-        >>> from pgmpy.sampling import GibbsSampling
-        >>> from pgmpy.models import MarkovNetwork
-        >>> model = MarkovNetwork([('A', 'B'), ('C', 'B')])
-        >>> factor_ab = DiscreteFactor(['A', 'B'], [2, 2], [1, 2, 3, 4])
-        >>> factor_cb = DiscreteFactor(['C', 'B'], [2, 2], [5, 6, 7, 8])
-        >>> model.add_factors(factor_ab, factor_cb)
-        >>> gibbs = GibbsSampling(model)
-        >>> gibbs.sample(size=4, return_tupe='dataframe')
            A  B  C
         0  0  1  1
         1  1  0  0
@@ -206,16 +194,6 @@ class GibbsSampling(MarkovChain):
 
         Examples
         --------
-        >>> from pgmpy.factors.discrete import DiscreteFactor
-        >>> from pgmpy.sampling import GibbsSampling
-        >>> from pgmpy.models import MarkovNetwork
-        >>> model = MarkovNetwork([('A', 'B'), ('C', 'B')])
-        >>> factor_ab = DiscreteFactor(['A', 'B'], [2, 2], [1, 2, 3, 4])
-        >>> factor_cb = DiscreteFactor(['C', 'B'], [2, 2], [5, 6, 7, 8])
-        >>> model.add_factors(factor_ab, factor_cb)
-        >>> gibbs = GibbsSampling(model)
-        >>> gen = gibbs.generate_sample(size=2)
-        >>> [sample for sample in gen]
         [[State(var='C', state=1), State(var='B', state=1), State(var='A', state=0)],
          [State(var='C', state=0), State(var='B', state=1), State(var='A', state=1)]]
         """
@@ -244,8 +222,8 @@ class GibbsSampling(MarkovChain):
 
 def main():
     student = BayesianNetwork([('diff', 'grade'), ('intel', 'grade')])
-    cpd_diff = TabularCPD('diff', 2, [[0.6], [0.4]])
-    cpd_intel = TabularCPD('intel', 2, [[0.7], [0.3]])
+    cpd_diff = TabularCPD('diff', 2, [[0.6, 0.3, 0.5, 0.2], [0.4, 0.7, 0.5, 0.8]],  ['intel', 'grade'], [2, 2])
+    cpd_intel = TabularCPD('intel', 2, [[0.7, 0.1, 0.2, 0.4], [0.3, 0.9, 0.8, 0.6]],  ['diff', 'grade'], [2, 2])
     cpd_grade = TabularCPD('grade', 2, [[0.1, 0.9, 0.2, 0.7], [0.9, 0.1, 0.8, 0.3]], ['intel', 'diff'], [2, 2])
     stud = student.add_cpds(cpd_diff, cpd_intel, cpd_grade)
     cpdd = student.get_cpds("grade").variable_card
